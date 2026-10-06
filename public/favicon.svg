@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="clayBg" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#3D6B49"/>
+      <stop offset="100%" stop-color="#1A3826"/>
+    </radialGradient>
+    <radialGradient id="sproutGrad" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#C5E6C7"/>
+      <stop offset="60%" stop-color="#7DA282"/>
+      <stop offset="100%" stop-color="#55815B"/>
+    </radialGradient>
+    <radialGradient id="sunGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFF2A8"/>
+      <stop offset="70%" stop-color="#F4D06F"/>
+      <stop offset="100%" stop-color="#E9B44C"/>
+    </radialGradient>
+    <filter id="clayShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="5" stdDeviation="4" flood-color="#0E2316" flood-opacity="0.35"/>
+    </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Clay Pebble Base -->
+  <rect x="8" y="8" width="112" height="112" rx="36" fill="url(#clayBg)" filter="url(#clayShadow)"/>
+  <!-- Highlight rim -->
+  <path d="M 24 12 Q 64 8 104 12" stroke="#6F9D7B" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <!-- Little Sun Dot -->
+  <circle cx="88" cy="40" r="12" fill="url(#sunGrad)"/>
+  <circle cx="86" cy="37" r="3.5" fill="#FFFFFF" opacity="0.65"/>
+  <!-- Sprout Stem -->
+  <path d="M 52 86 C 52 68, 62 60, 64 48" stroke="#A4C3A2" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <!-- Left Sprout Leaf -->
+  <path d="M 64 62 C 40 58, 32 46, 38 38 C 48 36, 62 48, 64 62 Z" fill="url(#sproutGrad)" filter="url(#clayShadow)"/>
+  <circle cx="44" cy="42" r="2.5" fill="#FFFFFF" opacity="0.6"/>
+  <!-- Right Sprout Leaf -->
+  <path d="M 64 54 C 84 48, 90 36, 82 32 C 72 32, 64 42, 64 54 Z" fill="url(#sproutGrad)" filter="url(#clayShadow)"/>
+  <!-- Soil Mound -->
+  <path d="M 38 88 C 48 82, 80 82, 90 88 C 84 94, 44 94, 38 88 Z" fill="#2E4A35"/>
+</svg>

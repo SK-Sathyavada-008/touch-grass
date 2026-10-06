@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --clay-bg: #FAF7F0;
+  --clay-card: #FFFFFF;
+  --clay-card-soft: #F4EFE6;
+  --clay-border: rgba(26, 56, 38, 0.09);
+  --clay-text: #163321;
+  --clay-text-muted: #53705C;
+  --clay-forest: #1A3826;
+  --clay-sage: #7DA282;
+  --clay-sun: #F4D06F;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--clay-bg);
+  color: var(--clay-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Clay UI core classes */
+.clay-card {
+  background: #FFFFFF;
+  border-radius: 28px;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 
+    inset 2px 2px 5px rgba(255, 255, 255, 0.9),
+    inset -2px -2px 5px rgba(26, 56, 38, 0.04),
+    8px 12px 24px -6px rgba(26, 56, 38, 0.08),
+    0 2px 6px rgba(26, 56, 38, 0.03);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.clay-card-forest {
+  background: linear-gradient(145deg, #244D38, #183725);
+  color: #F8FAF7;
+  border-radius: 28px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    inset 2px 2px 4px rgba(255, 255, 255, 0.25),
+    inset -2px -2px 6px rgba(0, 0, 0, 0.25),
+    8px 14px 28px -4px rgba(24, 55, 37, 0.25);
+}
+
+.clay-card-sage {
+  background: linear-gradient(145deg, #E8F1E9, #D9E7DA);
+  border-radius: 28px;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+    inset -2px -2px 4px rgba(26, 56, 38, 0.06),
+    6px 10px 20px -4px rgba(26, 56, 38, 0.07);
+}
+
+.clay-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24px;
+  font-weight: 700;
+  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.clay-btn-forest {
+  background: linear-gradient(150deg, #29563E, #183825);
+  color: #FFFFFF;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    inset 1.5px 2px 3px rgba(255, 255, 255, 0.35),
+    inset -1.5px -2px 4px rgba(0, 0, 0, 0.25),
+    0 6px 14px -2px rgba(24, 56, 37, 0.3);
+}
+
+.clay-btn-forest:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+  box-shadow: 
+    inset 2px 3px 6px rgba(0, 0, 0, 0.35),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.2),
+    0 2px 6px rgba(24, 56, 37, 0.2);
+}
+
+.clay-btn-sun {
+  background: linear-gradient(150deg, #F9D87C, #EBB847);
+  color: #193824;
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 
+    inset 2px 2px 3px rgba(255, 255, 255, 0.7),
+    inset -1.5px -2px 4px rgba(180, 120, 20, 0.2),
+    0 6px 14px -2px rgba(235, 184, 71, 0.35);
+}
+
+.clay-btn-sun:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+  box-shadow: 
+    inset 2px 3px 6px rgba(180, 120, 20, 0.3),
+    0 2px 6px rgba(235, 184, 71, 0.2);
+}
+
+.clay-btn-cream {
+  background: linear-gradient(150deg, #FFFFFF, #F1ECE2);
+  color: #1A3826;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    inset 2px 2px 4px rgba(255, 255, 255, 0.95),
+    inset -2px -2px 4px rgba(26, 56, 38, 0.06),
+    0 4px 12px -2px rgba(26, 56, 38, 0.08);
+}
+
+.clay-btn-cream:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+  box-shadow: 
+    inset 2px 3px 5px rgba(26, 56, 38, 0.12),
+    0 1px 4px rgba(26, 56, 38, 0.05);
+}
+
+.clay-badge {
+  background: #E8F1E9;
+  color: #1D432D;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 9999px;
+  box-shadow: 
+    inset 1px 1px 2px rgba(255, 255, 255, 0.8),
+    inset -1px -1px 2px rgba(26, 56, 38, 0.05),
+    0 2px 4px rgba(26, 56, 38, 0.04);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
