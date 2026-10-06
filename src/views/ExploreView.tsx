@@ -3,6 +3,7 @@ import type { ExploreAdventure, ActiveAdventure, AdventureDestination } from '..
 import { ClayCard } from '../components/clay/ClayCard';
 import { ClayButton } from '../components/clay/ClayButton';
 import { ClayCharacter } from '../components/clay/ClayCharacter';
+import { ApiService } from '../services/api';
 
 interface ExploreViewProps {
   onStartAdventure: (active: ActiveAdventure) => void;
@@ -44,23 +45,16 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ onStartAdventure, onBa
 
   const fetchAdventure = async (lat?: number, lon?: number) => {
     try {
-      const res = await fetch('/api/adventure/explore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          timeMinutes,
-          groupType,
-          lat,
-          lon,
-        }),
+      const data = await ApiService.generateExploreAdventure({
+        timeMinutes,
+        groupType,
+        lat,
+        lon,
       });
-
-      if (!res.ok) throw new Error('Failed to generate exploration');
-      const data: ExploreAdventure = await res.json();
       setAdventure(data);
       setModeChosen('preview');
     } catch {
-      setLocationNotice('🌱 The adventure generator is taking a little nap. Try again in a moment.');
+      setLocationNotice('🌱 The adventure generator got distracted. Try again.');
     } finally {
       setLoading(false);
     }

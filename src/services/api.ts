@@ -1,9 +1,13 @@
 import type { TenMinuteAdventure, ExploreAdventure, DiscoveryItem } from '../types';
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
 export class ApiService {
   private static async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const targetUrl = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(targetUrl, {
         headers: {
           'Content-Type': 'application/json',
           ...(options?.headers || {}),
@@ -18,7 +22,7 @@ export class ApiService {
 
       return await response.json();
     } catch (err) {
-      console.warn(`[ApiService] Request to ${endpoint} failed:`, err);
+      console.warn(`[ApiService] Request to ${targetUrl} failed:`, err);
       throw err;
     }
   }

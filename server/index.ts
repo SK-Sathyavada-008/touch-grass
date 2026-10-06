@@ -15,9 +15,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = parseInt(process.env.PORT || '3001', 10);
 
-app.use(cors());
-// Allow base64 image uploads for nature analysis
-app.use(express.json({ limit: '20mb' }));
+// Disciplined CORS configuration
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.use(cors({
+  origin: allowedOrigin ? allowedOrigin.split(',').map(o => o.trim()) : true,
+  methods: ['GET', 'POST'],
+  credentials: true,
+}));
+
+// Reasonable payload size limit to prevent memory abuse
+app.use(express.json({ limit: '10mb' }));
+
+// Basic security headers
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 const gemmaProvider = createGemmaProvider();
 const fallbackMockProvider = new MockGemmaProvider();
@@ -38,23 +53,30 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.post('/api/adventure/ten-minute', async (req: Request, res: Response) => {
   try {
     const { timeMinutes = 10, groupType = 'solo', locationContext, weatherContext, vibe } = req.body;
+
+    const sanitizedTime = Math.min(Math.max(Number(timeMinutes) || 10, 5), 120);
+    const sanitizedGroup = groupType === 'friends' ? 'friends' : 'solo';
+    const sanitizedVibe = typeof vibe === 'string' ? vibe.slice(0, 80) : undefined;
+    const sanitizedLocation = typeof locationContext === 'string' ? locationContext.slice(0, 100) : undefined;
+    const sanitizedWeather = typeof weatherContext === 'string' ? weatherContext.slice(0, 100) : undefined;
+
     let result;
     try {
       result = await gemmaProvider.generateTenMinuteAdventure({
-        timeMinutes: Number(timeMinutes),
-        groupType,
-        locationContext,
-        weatherContext,
-        vibe,
+        timeMinutes: sanitizedTime,
+        groupType: sanitizedGroup,
+        locationContext: sanitizedLocation,
+        weatherContext: sanitizedWeather,
+        vibe: sanitizedVibe,
       });
     } catch (aiErr) {
       console.warn('[Server] Primary Gemma provider failed for 10-minute adventure, falling back to mock:', (aiErr as Error).message);
       result = await fallbackMockProvider.generateTenMinuteAdventure({
-        timeMinutes: Number(timeMinutes),
-        groupType,
-        locationContext,
-        weatherContext,
-        vibe,
+        timeMinutes: sanitizedTime,
+        groupType: sanitizedGroup,
+        locationContext: sanitizedLocation,
+        weatherContext: sanitizedWeather,
+        vibe: sanitizedVibe,
       });
     }
     res.json(result);
@@ -72,8 +94,14 @@ app.post('/api/adventure/explore', async (req: Request, res: Response) => {
   try {
     const { timeMinutes = 30, groupType = 'solo', lat, lon } = req.body;
 
+    const sanitizedTime = Math.min(Math.max(Number(timeMinutes) || 30, 15), 240);
+    const sanitizedGroup = groupType === 'friends' ? 'friends' : 'solo';
+
     let nearbyPlaces = [];
-    if (typeof lat === 'number' && typeof lon === 'number') {
+    const validLat = typeof lat === 'number' && !isNaN(lat) && lat >= -90 && lat <= 90;
+    const validLon = typeof lon === 'number' && !isNaN(lon) && lon >= -180 && lon <= 180;
+
+    if (validLat && validLon) {
       nearbyPlaces = await OsmService.findNearbyOutdoorSpots(lat, lon);
     } else {
       nearbyPlaces = OsmService.getDefaultOutdoorSpots();
@@ -82,15 +110,15 @@ app.post('/api/adventure/explore', async (req: Request, res: Response) => {
     let result;
     try {
       result = await gemmaProvider.generateExploreAdventure(
-        Number(timeMinutes),
-        groupType === 'friends' ? 'friends' : 'solo',
+        sanitizedTime,
+        sanitizedGroup,
         nearbyPlaces
       );
     } catch (aiErr) {
       console.warn('[Server] Primary Gemma provider failed for explore adventure, falling back to mock:', (aiErr as Error).message);
       result = await fallbackMockProvider.generateExploreAdventure(
-        Number(timeMinutes),
-        groupType === 'friends' ? 'friends' : 'solo',
+        sanitizedTime,
+        sanitizedGroup,
         nearbyPlaces
       );
     }
@@ -109,15 +137,18 @@ app.post('/api/adventure/explore', async (req: Request, res: Response) => {
 app.post('/api/adventure/clue', async (req: Request, res: Response) => {
   try {
     const { destinationName, destinationType } = req.body;
-    if (!destinationName) {
+    if (!destinationName || typeof destinationName !== 'string') {
       return res.status(400).json({ error: 'destinationName is required' });
     }
 
+    const cleanName = destinationName.slice(0, 100);
+    const cleanType = typeof destinationType === 'string' ? destinationType.slice(0, 50) : 'nature';
+
     let clue: string;
     try {
-      clue = await gemmaProvider.generateQuestClue(destinationName, destinationType || 'nature');
+      clue = await gemmaProvider.generateQuestClue(cleanName, cleanType);
     } catch (aiErr) {
-      clue = await fallbackMockProvider.generateQuestClue(destinationName, destinationType || 'nature');
+      clue = await fallbackMockProvider.generateQuestClue(cleanName, cleanType);
     }
 
     res.json({ clue });
@@ -133,16 +164,26 @@ app.post('/api/adventure/clue', async (req: Request, res: Response) => {
 app.post('/api/discovery/analyze', async (req: Request, res: Response) => {
   try {
     const { imageBase64, mimeType = 'image/jpeg' } = req.body;
-    if (!imageBase64) {
-      return res.status(400).json({ error: 'imageBase64 is required' });
+
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return res.status(400).json({ error: 'imageBase64 string is required' });
+    }
+
+    // Validate mime type
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/jpg'];
+    const cleanMime = validMimes.includes(mimeType) ? mimeType : 'image/jpeg';
+
+    // Validate payload size (max ~8MB decoded payload)
+    if (imageBase64.length > 12 * 1024 * 1024) {
+      return res.status(413).json({ error: 'Image exceeds maximum allowed size (8MB).' });
     }
 
     let result;
     try {
-      result = await gemmaProvider.analyzeDiscoveryImage(imageBase64, mimeType);
+      result = await gemmaProvider.analyzeDiscoveryImage(imageBase64, cleanMime);
     } catch (aiErr) {
       console.warn('[Server] Vision provider failed or model unsupported, using fallback identification:', (aiErr as Error).message);
-      result = await fallbackMockProvider.analyzeDiscoveryImage(imageBase64, mimeType);
+      result = await fallbackMockProvider.analyzeDiscoveryImage(imageBase64, cleanMime);
     }
 
     res.json(result);
@@ -155,7 +196,7 @@ app.post('/api/discovery/analyze', async (req: Request, res: Response) => {
   }
 });
 
-// Serve frontend in production
+// Serve frontend in production (dist directory)
 const distPath = path.resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 app.use((_req, res) => {

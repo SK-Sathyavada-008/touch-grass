@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "start": "tsx server/index.ts"
+    "start": "tsx server/index.ts",
+    "test:ai": "tsx scripts/test-ai-audit.ts"
   },
   "dependencies": {
     "autoprefixer": "^10.6.1",

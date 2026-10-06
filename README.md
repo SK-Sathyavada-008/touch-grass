@@ -151,13 +151,45 @@ npm run dev
 
 ### Production Build & Run
 ```bash
-# Build production client and PWA service worker
+# 1. Build production client, PWA manifest, and service worker
 npm run build
 
-# Start production server
+# 2. Run automated AI schema & validation audit
+npm run test:ai
+
+# 3. Start production server (serves API & static PWA)
 npm start
 ```
 The application will be served at `http://localhost:3001` with full offline service worker caching and PWA installability.
+
+---
+
+## ☁️ Deployment Guide (Render)
+
+TouchGrass is engineered to deploy as a unified, zero-friction Web Service on **Render**:
+
+### Option A: 1-Click Blueprint (Recommended)
+1. Fork or push this repository to GitHub.
+2. In the [Render Dashboard](https://dashboard.render.com/), choose **New +** → **Blueprint**.
+3. Connect your repository. Render will automatically read `render.yaml`.
+4. Enter your `GEMMA_API_KEY` when prompted in the environment settings.
+5. Click **Apply**.
+
+### Option B: Manual Web Service
+1. In Render, select **New +** → **Web Service**.
+2. Connect your repository.
+3. Configure settings:
+   - **Environment:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/api/health`
+4. Add Environment Variables:
+   - `NODE_ENV`: `production`
+   - `GEMMA_MODEL`: `gemma-2-9b-it`
+   - `GEMMA_VISION_MODEL`: `paligemma-3b-mix-448`
+   - `GEMMA_API_KEY`: *(Your Gemma API Key)*
+   - `GEMMA_API_BASE_URL`: `https://generativelanguage.googleapis.com/v1beta/openai/`
+5. Click **Create Web Service**. Render assigns a live HTTPS URL with full PWA installation support.
 
 ---
 
