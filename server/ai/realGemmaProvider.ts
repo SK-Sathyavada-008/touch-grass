@@ -17,15 +17,19 @@ export class RealGemmaProvider implements IGemmaProvider {
   private model: string;
   private visionModel: string;
   private baseUrl: string;
+  private isGoogleNative: boolean;
 
   constructor(config: GemmaConfig) {
     this.apiKey = config.apiKey.trim();
-    // Default to the current stable Gemma open-weight instruct model
-    this.model = (config.model || process.env.GEMMA_MODEL || 'gemma-2-9b-it').trim();
-    // Vision model (PaliGemma or multimodal Gemma endpoint)
-    this.visionModel = (config.visionModel || process.env.GEMMA_VISION_MODEL || 'paligemma-3b-mix-448').trim();
+    // Default to the user's available Gemma 4 model or configured model
+    this.model = (config.model || process.env.GEMMA_MODEL || 'gemma-4-31b-it').trim();
+    // Vision model (Google multimodal or compatible vision endpoint)
+    this.visionModel = (config.visionModel || process.env.GEMMA_VISION_MODEL || 'gemini-2.5-flash').trim();
     // Configurable base URL
-    this.baseUrl = (config.baseUrl || process.env.GEMMA_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/').trim().replace(/\/+$/, '');
+    this.baseUrl = (config.baseUrl || process.env.GEMMA_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim().replace(/\/+$/, '');
+    
+    // Detect whether to use native Google AI Studio generateContent API
+    this.isGoogleNative = this.baseUrl.includes('googleapis.com') || this.apiKey.startsWith('AIza') || this.apiKey.startsWith('AQ.');
   }
 
   /**
@@ -56,11 +60,51 @@ export class RealGemmaProvider implements IGemmaProvider {
   }
 
   /**
-   * Universal completion caller via OpenAI-compatible API
+   * Universal completion caller: automatically switches between native Google generateContent
+   * and standard OpenAI-compatible API based on provider
    */
-  private async callChatCompletion(messages: Array<{ role: string; content: any }>, modelToUse: string): Promise<string> {
-    const url = `${this.baseUrl}/chat/completions`;
+  private async callGenerate(systemPrompt: string, userPrompt: string, modelToUse: string): Promise<string> {
+    if (this.isGoogleNative) {
+      const modelName = modelToUse.startsWith('models/') ? modelToUse.replace('models/', '') : modelToUse;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`;
 
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\n---\n${userPrompt}` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.65,
+            maxOutputTokens: 1500,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => '');
+        throw new Error(`Google Gemma API error (${response.status}): ${errBody.slice(0, 200)}`);
+      }
+
+      const data = await response.json();
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      // Filter out thought tokens from Gemma 4 models
+      const textParts = parts.filter((p: any) => !p.thought && typeof p.text === 'string').map((p: any) => p.text);
+      const combinedText = textParts.length > 0 ? textParts.join('') : (parts[parts.length - 1]?.text || '');
+
+      if (!combinedText) {
+        throw new Error('Google Gemma API returned empty text in candidate parts.');
+      }
+      return combinedText;
+    }
+
+    // Fallback to OpenAI-compatible endpoint (Groq, OpenRouter, Ollama)
+    const url = `${this.baseUrl}/chat/completions`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -69,9 +113,12 @@ export class RealGemmaProvider implements IGemmaProvider {
       },
       body: JSON.stringify({
         model: modelToUse,
-        messages,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
         temperature: 0.65,
-        max_tokens: 1200,
+        max_tokens: 1500,
         response_format: { type: 'json_object' },
       }),
     });
@@ -90,27 +137,16 @@ export class RealGemmaProvider implements IGemmaProvider {
   }
 
   /**
-   * Universal completion with 1 retry on malformed JSON
+   * Universal completion with 1 automatic retry on malformed JSON
    */
   private async executeWithRetry<T>(systemPrompt: string, userPrompt: string, modelToUse: string): Promise<T> {
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ];
-
     try {
-      const raw = await this.callChatCompletion(messages, modelToUse);
+      const raw = await this.callGenerate(systemPrompt, userPrompt, modelToUse);
       return this.cleanAndParseJson<T>(raw);
     } catch (firstError) {
       console.warn(`[RealGemmaProvider] Retrying prompt after error: ${(firstError as Error).message}`);
-      const retryMessages = [
-        ...messages,
-        {
-          role: 'user',
-          content: 'IMPORTANT: Reply ONLY with valid, RFC 8259 JSON format. Do not include markdown ticks, extra commentary, or trailing commas.',
-        },
-      ];
-      const secondRaw = await this.callChatCompletion(retryMessages, modelToUse);
+      const retryUserPrompt = `${userPrompt}\n\nIMPORTANT: Reply ONLY with valid RFC 8259 JSON format. Do not include markdown codeblocks or extra commentary.`;
+      const secondRaw = await this.callGenerate(systemPrompt, retryUserPrompt, modelToUse);
       return this.cleanAndParseJson<T>(secondRaw);
     }
   }
@@ -256,8 +292,51 @@ Return ONLY valid JSON matching this schema:
   "nextQuest": "One new outdoor mini-quest related to this finding"
 }`;
 
-    const dataUrl = `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`;
+    if (this.isGoogleNative) {
+      const modelName = this.visionModel.startsWith('models/') ? this.visionModel.replace('models/', '') : this.visionModel;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`;
 
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: `${systemPrompt}\n\n---\nWhat did I just see outdoors? Please analyze this image.` },
+                {
+                  inlineData: {
+                    mimeType: mimeType || 'image/jpeg',
+                    data: imageBase64,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 1000,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => '');
+        throw new Error(`Google Vision API error (${response.status}): ${errBody.slice(0, 200)}`);
+      }
+
+      const data = await response.json();
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const textParts = parts.filter((p: any) => !p.thought && typeof p.text === 'string').map((p: any) => p.text);
+      const combinedText = textParts.length > 0 ? textParts.join('') : (parts[parts.length - 1]?.text || '');
+      const parsed = this.cleanAndParseJson<any>(combinedText);
+      return AiOutputValidator.validateImageAnalysis(parsed);
+    }
+
+    // OpenAI-compatible multimodal endpoint
+    const dataUrl = `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`;
     const messages = [
       { role: 'system', content: systemPrompt },
       {
@@ -269,13 +348,30 @@ Return ONLY valid JSON matching this schema:
       },
     ];
 
-    try {
-      const raw = await this.callChatCompletion(messages, this.visionModel);
-      const parsed = this.cleanAndParseJson<any>(raw);
-      return AiOutputValidator.validateImageAnalysis(parsed);
-    } catch (err) {
-      console.warn(`[RealGemmaProvider] Gemma Vision analysis failed: ${(err as Error).message}`);
-      throw err;
+    const url = `${this.baseUrl}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.visionModel,
+        messages,
+        temperature: 0.5,
+        max_tokens: 1000,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`Gemma Vision provider API returned status ${response.status}: ${errBody.slice(0, 200)}`);
     }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    const parsed = this.cleanAndParseJson<any>(content);
+    return AiOutputValidator.validateImageAnalysis(parsed);
   }
 }

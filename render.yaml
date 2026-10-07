@@ -10,10 +10,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: GEMMA_MODEL
-        value: gemma-2-9b-it
+        value: gemma-4-26b-a4b-it
       - key: GEMMA_VISION_MODEL
-        value: paligemma-3b-mix-448
+        value: gemini-2.5-flash
       - key: GEMMA_API_BASE_URL
-        value: https://generativelanguage.googleapis.com/v1beta/openai/
+        value: https://generativelanguage.googleapis.com/v1beta
       - key: GEMMA_API_KEY
         sync: false
