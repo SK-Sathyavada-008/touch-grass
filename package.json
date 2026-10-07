@@ -11,7 +11,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "tsx server/index.ts",
-    "test:ai": "tsx scripts/test-ai-audit.ts"
+    "test:ai": "tsx scripts/test-ai-audit.ts",
+    "test:qa": "tsx scripts/full-qa-audit.ts"
   },
   "dependencies": {
     "autoprefixer": "^10.6.1",
